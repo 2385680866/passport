@@ -17,63 +17,62 @@ class UserController extends Controller
         //接受数据
         $name=$request->input("name");
         $email=$request->input("email");
-        $mobile=$request->input("mobile");
-        $pwd1=$request->input("pwd1");
-        $pwd2=$request->input("pwd2");
+        // $mobile=$request->input("mobile");
+        // $pwd1=$request->input("pwd1");
+        $pwd=$request->input("pwd");
         //判断参数是否为空
-    	if(empty($name)||empty($email)||empty($mobile)||empty($pwd1))
+    	if(empty($name)||empty($email)||empty($pwd))
         {
-            $response=[
-                "code"=>40001,
-                "msg"=>"参数不能为空"
-            ];
-            return $response;
+            return json_encode(["code"=>40001,"msg"=>"参数不能为空"],JSON_UNESCAPED_UNICODE);
     	}
+        //判断手机号格式是否正确
+        // if(!preg_match("/^1[34578]\d{9}$/",$mobile))
+        // {
+        //     return json_encode(["code"=>40008 ,"msg"=>"手机号格式不正确" ],JSON_UNESCAPED_UNICODE);
+        // }
+        // //判断手机号和用户名是否一致
+        // if($mobile==$name)
+        // {
+        //     return json_encode(["code"=>40009 ,"msg"=>"手机号和用户名称不能保持一致"],JSON_UNESCAPED_UNICODE);
+        // }
         //判断密码与确认密码是否一致
-    	if($pwd1!=$pwd2)
-        {
-            $response=[
-                "code"=>40002,
-                "msg"=>"密码与确认密码不一致"
-            ];
-    	}
+    	// if($pwd1!=$pwd2)
+     //    {
+     //        return json_encode(["code"=>40002 ,"msg"=>"密码与确认密码不一致"],JSON_UNESCAPED_UNICODE);
+    	// }
+        //判断用户名称已被占用
         $info=UserModel::where(['name'=>$name])->first();
         if($info)
         {
-            exit("名称已存在");
+            return json_encode(["code"=>40010,"msg"=>"用户名称已被占用"],JSON_UNESCAPED_UNICODE);
         }
+        //判断手邮箱被占用
         $info=UserModel::where(['email'=>$email])->first();
         if($info)
         {
-            exit("邮箱已存在");
+            return json_encode(["code"=>40010,"msg"=>"邮箱已被占用"],JSON_UNESCAPED_UNICODE);
         }
-        $info=UserModel::where(['mobile'=>$mobile])->first();
-        if($info)
-        {
-            exit("手机号已存在");
-        }
+        //判断手机号是否被占用
+        // $info=UserModel::where(['mobile'=>$mobile])->first();
+        // if($info)
+        // {
+        //     return json_encode(["code"=>40010,"msg"=>"手机号已被占用"],JSON_UNESCAPED_UNICODE);
+        // }
         //生成密码
-        $pwd=password_hash($pwd1,PASSWORD_BCRYPT);
+        $pwd=password_hash($pwd,PASSWORD_BCRYPT);
     	$data=[
     		"name"=>$name,
     		"email"=>$email,
-    		"mobile"=>$mobile,
+    		// "mobile"=>$mobile,
     		"pwd"=>$pwd,
     	];
         //入库
     	$res=UserModel::insert($data);
     	if($res){
-            $response=[
-                "code"=>40000,
-                "msg"=>"注册成功"
-            ];
+            return json_encode(["code"=>40000,"msg"=>"注册成功"],JSON_UNESCAPED_UNICODE);
     	}else{
-            $response=[
-                "code"=>40004,
-                "msg"=>"注册失败"
-            ];
+            return json_encode(["code"=>40004,"msg"=>"注册失败"],JSON_UNESCAPED_UNICODE);
     	}
-        return json_encode($response,JSON_UNESCAPED_UNICODE);
     }
     /**
      * 登录
@@ -86,10 +85,7 @@ class UserController extends Controller
         //判断密码是否存在
     	if(empty($pwd)||empty($name)){
             //不存在则返回
-            $response=[
-                "code"=>40001,
-                "msg"=>"没有账号或密码"
-            ];
+            $response=["code"=>40001,"msg"=>"没有账号或密码"];
     	}
         //判断账号
         if(strpos($name,'@'))//如果是邮箱则
@@ -104,13 +100,13 @@ class UserController extends Controller
             $where=['name'=>$name];
             $info=UserModel::where($where)->first();
         }
-    	if(empty($info)){
-            $response=[
-                "code"=>40005,
-                "msg"=>"没有此用户"
-            ];
-    	}else{
-    		if(password_verify($pwd,$info->pwd)){
+        //判断是否有此用户
+    	if(empty($info))//如果没有
+        {
+            $response=["code"=>40005,"msg"=>"没有此用户"];
+    	}else{ //如果有
+            //判断密码是否正确
+    		if(password_verify($pwd,$info->pwd)){ //如果正确
                 //生成token
                 $token=$this->getToken($info->id);
                 $redis_token_key="str:user:token:".$info->id;
@@ -118,16 +114,10 @@ class UserController extends Controller
                 $response=[
                     "code"=>40000,
                     "msg"=>"登录成功",
-                    "data"=>[
-                        "token"=>$token,
-                        "id"=>$info->id
-                    ]
+                    "data"=>["token"=>$token,"id"=>$info->id]
                 ];
-	    	}else{
-                $response=[
-                    "code"=>40005,
-                    "msg"=>"没有此用户",
-                ];
+	    	}else{ //如果不正确
+                $response=["code"=>40005,"msg"=>"没有此用户",];
 	    	}
     	}
         return json_encode($response,JSON_UNESCAPED_UNICODE);
@@ -148,31 +138,33 @@ class UserController extends Controller
      */
    	public function list(Request $request)
    	{
-        $token=$_SERVER['HTTP_TOKEN'];
         $uid=$_SERVER['HTTP_UID'];
-        if(empty($token)||empty($uid))
+        $info=UserModel::where(['id'=>$uid])->first();
+        return json_encode(['code'=>40000,"data"=>$info],JSON_UNESCAPED_UNICODE);
+   	}
+    /**
+     * 鉴权
+     * @return [type] [description]
+     */
+    public function auth()
+    {
+
+        $uid=$_POST['uid'];
+        $token=$_POST['token'];
+        if(empty($_POST['uid'])||empty($_POST['token']))
         {
-            $response=[
-                "code"=>40000,
-                "msg"=>"token或uid不存在"
-            ];
+            return json_encode(['code'=>40003,"msg"=>"没有UID或TOKEN"],JSON_UNESCAPED_UNICODE);
         }
         $redis_token_key="str:user:token:".$uid;
+        //验证token是否有效
         $cache_token=Redis::get($redis_token_key);
         if($token==$cache_token)
         {
             $data=date("Y-m-d H:i:s");
-            $response=[
-                "code"=>40000,
-                "msg"=>"ok",
-                "data"=>$data
-            ];
+            return json_encode(['code'=>40000,"msg"=>"ok"]);
         }else{
-            $response=[
-                "code"=>40004,
-                "msg"=>"token或uid有误",
-            ];
+            return json_encode(['code'=>40004,"msg"=>"Token Not Valid!"]);
         }
-        return json_encode($response,JSON_UNESCAPED_UNICODE);
-   	}
+
+    }
 }

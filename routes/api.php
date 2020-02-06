@@ -18,5 +18,6 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 });
 Route::post("/reg","Api\UserController@reg");//注册
 Route::post("/login","Api\UserController@login");//登录
-Route::get("/list","Api\UserController@list")->middleware("token");//列表
+Route::get("/list","Api\UserController@list")->middleware("check.token");//列表
+Route::post("/auth","Api\UserController@auth");//鉴权
 
