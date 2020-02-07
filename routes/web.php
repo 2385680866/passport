@@ -14,5 +14,6 @@
 Route::get('/', function () {
     return view('welcome');
 });
-Route::get("test/check","TestController@check");//测试签名
+Route::get("test/md5SignGet","TestController@md5SignGet");//测试签名GET
+Route::post("test/md5SignPost","TestController@md5SignPost");//测试签名POST
 
